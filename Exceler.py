@@ -10,32 +10,40 @@ from collections import defaultdict
 
 tulot = []
 menot = []
-p2 = []
+dataTuple = [] # Contains date, transaction and source of transaction.
 
+# If no command-line parameter for filename, then close the program.
 if len(argv) < 2:
     exit()
 
-transactionFile = argv[1]
-with open(transactionFile) as f:
+transactionFilename = argv[1]
+
+with open(transactionFilename) as f:
     next(f)
     next(f)
     next(f)
     for line in f:
         parts = line.strip('\n').split('\t')
+
         if len(parts) > 1:
             t = int(parts[2].split('.')[0]), float(parts[3].replace(',', '.')), parts[4]
+
             if t[1] > 0:
                 tulot.append(t)
             else:
                 menot.append(t)
-            p2.append(t)
 
+            dataTuple.append(t)
+
+# Excel filename where the data gets appended to.
 fileName = 'test.xlsx'
-print(f"Adding data from {transactionFile} to {fileName}")
+print(f"Adding data from {transactionFilename} to {fileName}")
+
+# Open workbook and select the second to last sheet.
 wb = openpyxl.load_workbook(fileName)
 ws = wb.create_sheet("Kuukausi", -1)
 
-
+""" Add income data to cells. """
 ws["A1"] = "Pvm."
 ws["B1"] = "€"
 ws["C1"] = "Saaja/Maksaja"
@@ -51,6 +59,7 @@ for paiva in tulot:
 
 i = i + 2 # Separate values by two rows.
 
+""" Add expense data to cells. """
 ws[f"A{i - 1}"] = "Pvm."
 ws[f"B{i - 1}"] = "€"
 ws[f"C{i - 1}"] = "Saaja/Maksaja"
@@ -62,8 +71,9 @@ for paiva in menot:
 
     i = i + 1
 
-ws.insert_cols(1, amount=1)
-ws.insert_rows(1, amount=1)
+
+ws.insert_cols(1, amount=1) # Add a column above the data in the sheet.
+ws.insert_rows(1, amount=1) # Add a row on the left of the data.
 ws.column_dimensions["C"].width = 10
 ws.column_dimensions["D"].width = 35
 
@@ -75,7 +85,7 @@ menotC = ws[f"E{len(tulot) + 3}"]
 g1 = ws["G1"]
 h1 = ws["H1"]
 
-
+# Add the balance of the month to a cell.
 g1.value = "Balanssi:"
 h1.value = f"=SUM(E1:E{len(tulot) + 3})"
 
@@ -132,4 +142,4 @@ ws[f"E{len(tulot) + 4}"].border = border
 tulotC.value = sum(map(lambda x: x[1], tulot))
 menotC.value = sum(map(lambda x: x[1], menot))
 
-wb.save(fileName)
+wb.save(fileName) # Save changes to the workbook.
