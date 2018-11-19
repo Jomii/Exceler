@@ -8,9 +8,8 @@ from collections import defaultdict
 # Make directory independent file input.
 # Better way of accessing input file (instead of argv)
 
-tulot = []
-menot = []
-dataTuple = [] # Contains date, transaction and source of transaction.
+income = [] # A list of tuples that contain date, amount received and payer.
+expenses = [] # A list of tuples that contain date, amount payed and receiver.
 
 # If no command-line parameter for filename, then close the program.
 if len(argv) < 2:
@@ -19,23 +18,24 @@ if len(argv) < 2:
 transactionFilename = argv[1]
 
 with open(transactionFilename) as f:
+    # Skip header of data file with next(f).
     next(f)
     next(f)
     next(f)
     for line in f:
         parts = line.strip('\n').split('\t')
 
+        # Skip empty parts that splitting with \t sometimes causes.
         if len(parts) > 1:
+            # Create a tuple with the data we want.
             t = int(parts[2].split('.')[0]), float(parts[3].replace(',', '.')), parts[4]
 
             if t[1] > 0:
-                tulot.append(t)
+                income.append(t)
             else:
-                menot.append(t)
+                expenses.append(t)
 
-            dataTuple.append(t)
-
-# Excel filename where the data gets appended to.
+# Excel filename for appending data.
 fileName = 'test.xlsx'
 print(f"Adding data from {transactionFilename} to {fileName}")
 
@@ -50,10 +50,10 @@ ws["C1"] = "Saaja/Maksaja"
 
 i = 2
 
-for paiva in tulot:
-    ws[f"A{i}"] = paiva[0]
-    ws[f"B{i}"] = paiva[1]
-    ws[f"C{i}"] = paiva[2]
+for day in income:
+    ws[f"A{i}"] = day[0]
+    ws[f"B{i}"] = day[1]
+    ws[f"C{i}"] = day[2]
 
     i = i + 1
 
@@ -64,34 +64,35 @@ ws[f"A{i - 1}"] = "Pvm."
 ws[f"B{i - 1}"] = "€"
 ws[f"C{i - 1}"] = "Saaja/Maksaja"
 
-for paiva in menot:
-    ws[f"A{i}"] = paiva[0]
-    ws[f"B{i}"] = paiva[1]
-    ws[f"C{i}"] = paiva[2]
+for day in expenses:
+    ws[f"A{i}"] = day[0]
+    ws[f"B{i}"] = day[1]
+    ws[f"C{i}"] = day[2]
 
     i = i + 1
 
 
 ws.insert_cols(1, amount=1) # Add a column above the data in the sheet.
 ws.insert_rows(1, amount=1) # Add a row on the left of the data.
-ws.column_dimensions["C"].width = 10
-ws.column_dimensions["D"].width = 35
+ws.column_dimensions["C"].width = 10 # Set the width of date column.
+ws.column_dimensions["D"].width = 35 # Set the width of payer/receiver column.
 
+# Vertical text in the first column for income and expenses.
 ws["A1"] = "TULOT"
-ws[f"A{len(tulot) + 3}"] = "MENOT"
+ws[f"A{len(income) + 3}"] = "MENOT"
 
-tulotC = ws["E1"]
-menotC = ws[f"E{len(tulot) + 3}"]
-g1 = ws["G1"]
-h1 = ws["H1"]
+incomeC = ws["E1"] # Cell where the total income is displayed.
+expensesC = ws[f"E{len(income) + 3}"] # Cell where the total expenses are displayed.
 
 # Add the balance of the month to a cell.
+g1 = ws["G1"]
+h1 = ws["H1"]
 g1.value = "Balanssi:"
-h1.value = f"=SUM(E1:E{len(tulot) + 3})"
+h1.value = f"=SUM(E1:E{len(income) + 3})"
 
 # Apply styles to a range of cells as if they were a single cell.
 def style_range(ws, cell_range, fill=None, font=None, alignment=None, merge=False):
-    # Merge cells in range and apply style to them.
+    # If param. merge is true, then merge cells in range and apply style to them.
     if merge:
         first_cell = ws[cell_range.split(":")[0]]
         ws.merge_cells(cell_range)
@@ -115,31 +116,31 @@ def style_range(ws, cell_range, fill=None, font=None, alignment=None, merge=Fals
 greenColor = PatternFill(fill_type='solid', start_color='c6e0b4', end_color='c6e0b4')
 redColor = PatternFill(fill_type='solid', start_color='fce4d6', end_color='fce4d6')
 yellowColor = PatternFill(fill_type='solid', start_color='ffe699', end_color='ffe699')
-al = Alignment(horizontal="center", vertical="center")
-al2 = Alignment(horizontal="center", vertical="center", text_rotation=90)
-font = Font(bold=True)
+centerAlign = Alignment(horizontal="center", vertical="center")
+centerHorizontal = Alignment(horizontal="center", vertical="center", text_rotation=90)
+bold = Font(bold=True)
 double = Side(border_style="medium")
 border = Border(top=double, left=double, right=double, bottom=double)
 # Add colors and cell alignments
 style_range(ws, 'A1:D2', fill=greenColor)
-style_range(ws, f'A{len(tulot) + 3}:D{len(tulot) + 4}', fill=redColor)
-style_range(ws, f'A1:A{len(tulot) + 2}', fill=greenColor, font=font, alignment=al2, merge=True)
-style_range(ws, f'A{len(tulot) + 3}:A{i}', fill=redColor, font=font, alignment=al2, merge=True)
+style_range(ws, f'A{len(income) + 3}:D{len(income) + 4}', fill=redColor)
+style_range(ws, f'A1:A{len(income) + 2}', fill=greenColor, font=bold, alignment=centerHorizontal, merge=True)
+style_range(ws, f'A{len(income) + 3}:A{i}', fill=redColor, font=bold, alignment=centerHorizontal, merge=True)
 # For balance
-style_range(ws, 'G1:H1', font=font, fill=yellowColor)
+style_range(ws, 'G1:H1', font=bold, fill=yellowColor)
 # Add fonts
-style_range(ws, 'B2:D2', font=font)
-style_range(ws, f'B{len(tulot) + 4}:D{len(tulot) + 4}', font=font)
+style_range(ws, 'B2:D2', font=bold)
+style_range(ws, f'B{len(income) + 4}:D{len(income) + 4}', font=bold)
 # Center Date and currency
-style_range(ws, f'B2:C{i}', alignment=al)
+style_range(ws, f'B2:C{i}', alignment=centerAlign)
 # Merge, center and add borders for totals
-style_range(ws, 'E1:E2', fill=greenColor, font=font, alignment=al, merge=True)
+style_range(ws, 'E1:E2', fill=greenColor, font=bold, alignment=centerAlign, merge=True)
 ws["E1"].border = border
 ws["E2"].border = border
-style_range(ws, f'E{len(tulot) + 3}:E{len(tulot) + 4}', fill=redColor, font=font, alignment=al, merge=True)
-ws[f"E{len(tulot) + 3}"].border = border
-ws[f"E{len(tulot) + 4}"].border = border
-tulotC.value = sum(map(lambda x: x[1], tulot))
-menotC.value = sum(map(lambda x: x[1], menot))
+style_range(ws, f'E{len(income) + 3}:E{len(income) + 4}', fill=redColor, font=bold, alignment=centerAlign, merge=True)
+ws[f"E{len(income) + 3}"].border = border
+ws[f"E{len(income) + 4}"].border = border
+incomeC.value = sum(map(lambda x: x[1], income))
+expensesC.value = sum(map(lambda x: x[1], expenses))
 
 wb.save(fileName) # Save changes to the workbook.
