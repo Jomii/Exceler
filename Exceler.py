@@ -1,21 +1,26 @@
+import locale
+locale.setlocale(locale.LC_ALL, "fi_FI")
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from sys import argv
 import re
 from collections import defaultdict
+import datetime
+
+# Start program:
+# python Exceler.py inputfilename.txt
 
 # TODO: Add errorchecking for filename input
-# Make directory independent file input.
-# Better way of accessing input file (instead of argv)
 
-income = [] # A list of tuples that contain date, amount received and payer.
-expenses = [] # A list of tuples that contain date, amount payed and receiver.
+income = []   # A list of (date, amount, payer) tuples.
+expenses = [] # A list of (date, amount, receiver) tuples.
 
-# If no command-line parameter for filename, then close the program.
-if len(argv) < 2:
+if len(argv) != 3:
+    print("usage: python Exceler.py <excel file> <transactions file>")
     exit()
 
-transactionFilename = argv[1]
+fileName = argv[1]
+transactionFilename = argv[2]
 
 with open(transactionFilename) as f:
     # Skip header of data file with next(f).
@@ -28,20 +33,22 @@ with open(transactionFilename) as f:
         # Skip empty parts that splitting with \t sometimes causes.
         if len(parts) > 1:
             # Create a tuple with the data we want.
-            t = int(parts[2].split('.')[0]), float(parts[3].replace(',', '.')), parts[4]
+            t = parts[2], float(parts[3].replace(',', '.')), parts[4]
 
             if t[1] > 0:
                 income.append(t)
             else:
                 expenses.append(t)
 
-# Excel filename for appending data.
-fileName = 'test.xlsx'
-print(f"Adding data from {transactionFilename} to {fileName}")
 
-# Open workbook and select the second to last sheet.
+print(f"Adding data from {transactionFilename} to {fileName}")
 wb = openpyxl.load_workbook(fileName)
-ws = wb.create_sheet("Kuukausi", -1)
+# Get month of first entry
+datetime_obj = datetime.datetime.strptime(str(income[0][0]), "%x")
+month = datetime_obj.strftime("%B")
+year = datetime_obj.strftime("%y")
+print(f"Creating new work sheet with name '{month + year}'")
+ws = wb.create_sheet(month + year, -1)
 
 """ Add income data to cells. """
 ws["A1"] = "Pvm."
@@ -51,7 +58,7 @@ ws["C1"] = "Saaja/Maksaja"
 i = 2
 
 for day in income:
-    ws[f"A{i}"] = day[0]
+    ws[f"A{i}"] = day[0].split('.')[0]
     ws[f"B{i}"] = day[1]
     ws[f"C{i}"] = day[2]
 
@@ -65,7 +72,7 @@ ws[f"B{i - 1}"] = "€"
 ws[f"C{i - 1}"] = "Saaja/Maksaja"
 
 for day in expenses:
-    ws[f"A{i}"] = day[0]
+    ws[f"A{i}"] = day[0].split('.')[0]
     ws[f"B{i}"] = day[1]
     ws[f"C{i}"] = day[2]
 
